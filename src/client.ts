@@ -54,7 +54,7 @@ export class JsonDiffPlugin<T extends ClientContext = ClientContext>
 
           if (!isAsyncIteratorObject(bodyValue)) {
             console.log("Not an async iterator, returning original response");
-            return response;
+            return bodyValue;
           }
 
           return mapEventIterator(bodyValue, {
