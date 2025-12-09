@@ -38,10 +38,14 @@ import { os, EventPublisher } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fetch";
 import { JsonDiffPlugin } from "orpc-json-diff/server";
 
+interface ORPCMetadata {
+  jsonDiff?: boolean;
+}
+
 const pub = new EventPublisher<{ update: object }>();
 
-const router = os.router({
-  live: os.handler(async function* ({ signal }) {
+const router = os.$meta<ORPCMetadata>({}).router({
+  live: os.meta({ jsonDiff: true }).handler(async function* ({ signal }) {
     yield await getInitial();
     for await (const update of pub.subscribe("update", { signal })) {
       yield update;
@@ -73,6 +77,52 @@ const rpcLink = new RPCLink({
 - First event: `{ patch: [], data: {...} }` (full object)
 - Subsequent events: `{ patch: [...] }` (incremental changes)
 - Client plugin reconstructs full object automatically
+
+## Enabling JSON Diff
+
+By default, the plugin is disabled and requires opt-in per procedure using metadata:
+
+```typescript
+interface ORPCMetadata {
+  jsonDiff?: boolean;
+}
+
+const base = os.$meta<ORPCMetadata>({});
+
+const router = base.router({
+  myStream: base
+    .meta({ jsonDiff: true }) // Enable JSON diff for this procedure
+    .handler(async function* () {
+      // ...
+    }),
+});
+```
+
+Alternatively, enable globally for all procedures:
+
+```typescript
+const handler = new RPCHandler(router, {
+  plugins: [
+    new JsonDiffPlugin({
+      include: true, // Enable for all procedures
+    }),
+  ],
+});
+```
+
+You can also use a predicate to filter:
+
+```typescript
+const handler = new RPCHandler(router, {
+  plugins: [
+    new JsonDiffPlugin({
+      include: (options) => options.path.includes("stream"),
+    }),
+  ],
+});
+```
+
+Procedure metadata takes priority over the plugin options.
 
 ## Note
 

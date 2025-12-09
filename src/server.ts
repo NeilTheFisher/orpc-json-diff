@@ -1,8 +1,11 @@
+import type { Meta } from "@orpc/contract";
+import type { ProcedureClientInterceptorOptions } from "@orpc/server";
 import type {
   StandardHandlerOptions,
   StandardHandlerPlugin,
 } from "@orpc/server/standard";
-import { isAsyncIteratorObject } from "@orpc/shared";
+import type { Promisable, Value } from "@orpc/shared";
+import { isAsyncIteratorObject, value } from "@orpc/shared";
 import { compare, type Operation } from "fast-json-patch";
 
 export interface JsonDiffResult<T> {
@@ -12,6 +15,23 @@ export interface JsonDiffResult<T> {
 
 // biome-ignore lint/suspicious/noExplicitAny: Matches oRPC's Context type definition
 type Context = Record<PropertyKey, any>;
+
+export interface JsonDiffPluginOptions<T extends Context> {
+  /**
+   * Filter to include specific procedures for JSON diff processing.
+   *
+   * This can be a boolean, or a predicate function that receives
+   * `ProcedureClientInterceptorOptions` and returns a boolean/promisable boolean.
+   *
+   * Note: Metadata on procedures takes priority over this option.
+   *
+   * @default false (disabled unless enabled via metadata or this option)
+   */
+  include?: Value<
+    Promisable<boolean>,
+    [options: ProcedureClientInterceptorOptions<T, Record<never, never>, Meta>]
+  >;
+}
 
 /**
  * Server-side plugin that transforms async iterator responses into JSON patches
@@ -29,12 +49,31 @@ type Context = Record<PropertyKey, any>;
 export class JsonDiffPlugin<T extends Context = Context>
   implements StandardHandlerPlugin<T>
 {
+  private readonly include: Exclude<
+    JsonDiffPluginOptions<T>["include"],
+    undefined
+  >;
+
+  constructor(options: JsonDiffPluginOptions<T> = {}) {
+    this.include = options.include ?? false;
+  }
+
   order = 1e6; // Run late in the handler chain
 
   init(options: StandardHandlerOptions<T>) {
     options.clientInterceptors ??= [];
 
     options.clientInterceptors.push(async (interceptorOptions) => {
+      const meta = interceptorOptions.procedure["~orpc"].meta;
+
+      const included =
+        meta.jsonDiff === true ||
+        (await value(this.include, interceptorOptions));
+
+      if (!included) {
+        return interceptorOptions.next();
+      }
+
       const result = await interceptorOptions.next();
 
       // Only process async iterators
