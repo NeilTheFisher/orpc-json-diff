@@ -1,6 +1,6 @@
 {
   "name": "orpc-json-diff",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "type": "module",
   "exports": {
     "./server": {
@@ -18,17 +18,17 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsdown --outDir dist --target es2020 src/server.ts src/client.ts",
+    "build": "tsdown --outDir dist --minify --target es2020 src/server.ts src/client.ts",
     "dev": "tsdown --watch"
   },
   "dependencies": {
     "@orpc/client": "^1.12.2",
     "@orpc/shared": "^1.12.2",
-    "fast-json-patch": "^3.1.1",
-    "tsdown": "^0.17.2"
+    "fast-json-patch": "^3.1.1"
   },
   "devDependencies": {
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "tsdown": "^0.17.2"
   },
   "peerDependencies": {
     "@orpc/client": "^1.12.2",
