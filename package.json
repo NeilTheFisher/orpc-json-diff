@@ -20,7 +20,10 @@
   ],
   "scripts": {
     "build": "tsdown --outDir dist --minify --target es2020 src/server.ts src/client.ts",
-    "dev": "tsdown --watch"
+    "dev": "tsdown --watch",
+    "format": "bun run format:sort-package-json && timeout 4 biome check --write .",
+    "format:sort-package-json": "bun x --bun sort-package-json@3.5.0 'package.json'",
+    "lint": "concurrently --names \"tsgo,biome,oxlint\" --prefix-colors auto \"tsgo --noEmit\" \"biome check .\" \"oxlint --type-aware\""
   },
   "dependencies": {
     "@orpc/client": "^1.12.2",
@@ -28,8 +31,13 @@
     "fast-json-patch": "^3.1.1"
   },
   "devDependencies": {
-    "typescript": "^5.9.3",
-    "tsdown": "^0.17.2"
+    "@biomejs/biome": "^2.3.8",
+    "@typescript/native-preview": "^7.0.0-dev.20251209.1",
+    "concurrently": "^9.2.1",
+    "oxlint": "^1.32.0",
+    "oxlint-tsgolint": "^0.8.4",
+    "tsdown": "^0.17.2",
+    "typescript": "^5.9.3"
   },
   "peerDependencies": {
     "@orpc/client": "^1.12.2",
