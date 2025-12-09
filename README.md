@@ -15,31 +15,25 @@ npm install orpc-json-diff
 Wrap your async generator with `withJsonDiff` to automatically compute and send JSON patches:
 
 ```typescript
+import { EventPublisher, os } from "@orpc/server";
 import { withJsonDiff } from "orpc-json-diff/server";
 
-export const contacts = base.router({
-  liveList: base.use(oboMiddleware).handler(
+const publisher = new EventPublisher<{ "large-payload-updated": object }>();
+
+export const payloads = os.router({
+  getLarge: os.handler(
     withJsonDiff(async function* ({ context, signal }) {
-      yield await getContactsList(context.graphClient);
+      yield await getLargePayload();
 
-      const publisher = await getOrCreateContactsSubscription(
-        context.graphClient,
-        context.sessionId,
-      );
-
-      try {
-        for await (const _ of publisher.subscribe("contact-updated", {
+      for await (const largePayload of publisher.subscribe(
+        "large-payload-updated",
+        {
           signal,
-        })) {
-          yield await getContactsList(context.graphClient);
         }
-      } finally {
-        await releaseContactsSubscription(
-          context.sessionId,
-          context.graphClient,
-        );
+      )) {
+        yield largePayload;
       }
-    }),
+    })
   ),
 });
 ```
@@ -63,10 +57,16 @@ The plugin automatically reconstructs full objects from patches, so your consume
 ## How It Works
 
 **Server:**
+
 - First yield sends full data with empty patch array: `{ patch: [], data: {...} }`
 - Subsequent yields send only patches: `{ patch: [{ op: "replace", path: "/contacts/0/displayName", ... }] }`
 
 **Client:**
+
 - Initial response sets the current state
 - Updates apply patches to reconstruct the full object
 - Yields the complete, up-to-date object every time
+
+## Limitations
+
+- Doesn't work properly yet with OpenAPI schema generation tools due to the wrapped handler signature.
