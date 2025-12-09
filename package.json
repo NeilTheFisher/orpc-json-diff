@@ -1,6 +1,6 @@
 {
   "name": "orpc-json-diff",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "repository": "https://github.com/NeilTheFisher/orpc-json-diff",
   "type": "module",
   "exports": {
@@ -17,7 +17,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsdown --outDir dist --minify --target es2020 src/server.ts src/client.ts",
+    "build": "tsdown --outDir dist --minify --dts --target es2024 src/server.ts src/client.ts",
     "dev": "tsdown --watch",
     "format": "bun run format:sort-package-json && timeout 4 biome check --write .",
     "format:sort-package-json": "bun x --bun sort-package-json@3.5.0 'package.json'",
