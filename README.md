@@ -4,6 +4,31 @@ JSON diff utilities for oRPC streaming responses. Implements incremental patches
 
 Inspired by [trpc-live's JSON diff approach](https://github.com/strblr/trpc-live?tab=readme-ov-file#json-diff).
 
+## Motivation
+
+When streaming large JSON objects that change slightly over time, sending the entire object on each update wastes bandwidth. By sending only the differences (patches) between successive states, we can significantly reduce the amount of data transmitted. This is especially useful for applications with real-time data updates, such as dashboards or collaborative tools.
+
+I wanted to be able to send a large JSON object that updates frequently, without re-sending the entire object each time. This library provides a simple way to achieve that with oRPC.
+
+For example, a project using websockets to update a JSON object could be done like this:
+
+```typescript
+// Tedious, don't do this
+socket.on("data-update", (newData) => updateData(newData));
+socket.on("data-fieldA-update", (newFieldA) => updateDataFieldA(newFieldA));
+socket.on("data-fieldB-update", (newFieldB) => updateDataFieldB(newFieldB));
+// And then logic to merge the updates into the existing object somewhere and to trigger updates...
+```
+
+Or, you could just stream the entire object and let the client handle the diffs efficiently:
+
+```typescript
+// [Basic oRPC event iterator usage](https://orpc.dev/docs/client/event-iterator#basic-usage)
+for await (const newData of await orpc.data.live()) {
+  doSomethingWith(newData);
+}
+```
+
 ## Installation
 
 ```bash
