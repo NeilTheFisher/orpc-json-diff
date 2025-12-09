@@ -1,3 +1,8 @@
+import type {
+  StandardHandlerOptions,
+  StandardHandlerPlugin,
+} from "@orpc/server/standard";
+import { isAsyncIteratorObject } from "@orpc/shared";
 import { compare, type Operation } from "fast-json-patch";
 
 export interface JsonDiffResult<T> {
@@ -5,27 +10,58 @@ export interface JsonDiffResult<T> {
   data?: T;
 }
 
+// biome-ignore lint/suspicious/noExplicitAny: Matches oRPC's Context type definition
+type Context = Record<PropertyKey, any>;
+
 /**
- * Higher-order async generator that wraps another generator and yields JSON patches
- * instead of full data objects (except for the initial response).
+ * Server-side plugin that transforms async iterator responses into JSON patches
+ * to reduce bandwidth usage.
+ *
+ * For streaming responses:
+ * - Initial response: { data: {...}, patch: [] }
+ * - Updates: { patch: [...] }
  *
  * Inspired by [trpc-live's JSON diff approach](https://github.com/strblr/trpc-live?tab=readme-ov-file#json-diff).
  *
- * @param fn - The original async generator function
- * @returns A new async generator that yields JSON patches (cast as T for type safety)
+ * This plugin detects handlers that return async iterators and automatically
+ * applies JSON diff compression to their output.
  */
-export function withJsonDiff<TOpts, T>(fn: (opts: TOpts) => AsyncGenerator<T>) {
-  return async function* (opts: TOpts): AsyncGenerator<T> {
-    let previous: T | null = null;
+export class JsonDiffPlugin<T extends Context = Context>
+  implements StandardHandlerPlugin<T>
+{
+  order = 1e6; // Run late in the handler chain
 
-    for await (const data of fn(opts)) {
+  init(options: StandardHandlerOptions<T>) {
+    options.clientInterceptors ??= [];
+
+    options.clientInterceptors.push(async (interceptorOptions) => {
+      const result = await interceptorOptions.next();
+
+      // Only process async iterators
+      if (!isAsyncIteratorObject(result)) {
+        return result;
+      }
+
+      // Wrap the async iterator with JSON diff logic
+      return this.wrapAsyncIterator(result);
+    });
+  }
+
+  private async *wrapAsyncIterator<TData>(
+    iterator: AsyncIterableIterator<TData>
+  ): AsyncGenerator<TData> {
+    let previous: TData | null = null;
+
+    for await (const data of iterator) {
       if (previous === null) {
-        yield { patch: [], data: data } as T;
+        // First response includes full data
+        yield { patch: [], data } as TData;
       } else {
+        // Subsequent responses include only patches
         const patch = compare(previous as object, data as object);
-        yield { patch } as T;
+        yield { patch } as TData;
       }
       previous = data;
     }
-  };
+  }
 }
