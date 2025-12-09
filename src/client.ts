@@ -53,7 +53,6 @@ export class JsonDiffPlugin<T extends ClientContext = ClientContext>
           const bodyValue = await response.body();
 
           if (!isAsyncIteratorObject(bodyValue)) {
-            console.log("Not an async iterator, returning original response");
             return bodyValue;
           }
 
@@ -63,7 +62,7 @@ export class JsonDiffPlugin<T extends ClientContext = ClientContext>
 
               if (!chunk) {
                 console.warn(
-                  "[JsonDiffPlugin] Received chunk without json property",
+                  "[JsonDiffPlugin] Received chunk without json property"
                 );
                 return Promise.resolve(value);
               }
